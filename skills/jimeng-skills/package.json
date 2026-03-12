@@ -1,0 +1,26 @@
+{
+  "name": "jimeng-skills",
+  "version": "0.2.0",
+  "description": "即梦AI OpenClaw skill: generate images/videos and format shareable results for Feishu, WeCom, and DingTalk",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "text2image": "ts-node scripts/text2image.ts",
+    "text2video": "ts-node scripts/text2video.ts",
+    "image": "ts-node scripts/openclaw-jimeng.ts image",
+    "video": "ts-node scripts/openclaw-jimeng.ts video"
+  },
+  "keywords": ["jimeng", "volcengine", "ai", "image-generation", "video-generation", "openclaw", "skill"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "crypto-js": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

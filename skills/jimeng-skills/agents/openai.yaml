@@ -1,0 +1,4 @@
+version: 1
+display_name: jimeng-skills
+short_description: Generate Jimeng images or videos and return shareable links for enterprise chat.
+default_prompt: Use jimeng-skills to generate an image or video with Jimeng and format the result for Feishu, WeCom, and DingTalk viewing.

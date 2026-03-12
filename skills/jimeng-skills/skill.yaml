@@ -1,0 +1,25 @@
+name: jimeng-skills
+description: 基于火山引擎即梦 AI 生成图片和视频，并输出适合 OpenClaw 在飞书、企微、钉钉中查看的分享结果
+version: 0.2.0
+
+requirements:
+  env:
+    - name: VOLCENGINE_AK
+      description: 火山引擎 Access Key
+      required: true
+    - name: VOLCENGINE_SK
+      description: 火山引擎 Secret Key（永久凭证必需）
+      required: false
+    - name: VOLCENGINE_TOKEN
+      description: 安全令牌（STS 临时凭证必需）
+      required: false
+    - name: JIMENG_PUBLIC_BASE_URL
+      description: 可选。将 output 目录映射为公开 https 访问地址，用于飞书/企微/钉钉直接查看
+      required: false
+  note: |
+    企业 IM 无法直接访问本地文件路径。若要跨设备查看，请依赖火山引擎返回的远程 URL，
+    或配置 JIMENG_PUBLIC_BASE_URL 生成公开分享链接。
+
+scripts:
+  image: npx ts-node scripts/openclaw-jimeng.ts image
+  video: npx ts-node scripts/openclaw-jimeng.ts video
