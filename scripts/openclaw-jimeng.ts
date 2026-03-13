@@ -24,6 +24,34 @@ interface BaseResult {
   [key: string]: unknown;
 }
 
+function extractJsonPayload(output: string): string {
+  const trimmed = output.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const lastBraceIndex = trimmed.lastIndexOf('{');
+  if (lastBraceIndex === -1) {
+    return trimmed;
+  }
+
+  for (let index = 0; index < trimmed.length; index++) {
+    if (trimmed[index] !== '{') {
+      continue;
+    }
+
+    const candidate = trimmed.slice(index);
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return trimmed;
+}
+
 function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
   const mode = args[0];
@@ -43,7 +71,7 @@ function parseArgs(): ParsedArgs {
 
 function runUnderlyingScript(mode: Mode, prompt: string, forwardArgs: string[]): BaseResult {
   const scriptName = mode === 'image' ? 'text2image.ts' : 'text2video.ts';
-  const workspaceRoot = path.resolve(__dirname, '..', '..');
+  const workspaceRoot = path.resolve(__dirname, '..');
   const sourceScriptPath = path.join(workspaceRoot, 'scripts', scriptName);
   const tsNodeBin = path.join(workspaceRoot, 'node_modules', '.bin', 'ts-node');
   const tsconfigPath = path.join(workspaceRoot, 'tsconfig.json');
@@ -61,7 +89,9 @@ function runUnderlyingScript(mode: Mode, prompt: string, forwardArgs: string[]):
     throw child.error;
   }
 
-  const raw = child.stdout.trim();
+  const stdout = child.stdout.trim();
+  const stderr = child.stderr.trim();
+  const raw = extractJsonPayload(stdout || stderr);
   if (!raw) {
     throw new Error(`${scriptName} 未输出 JSON 结果`);
   }
@@ -153,20 +183,31 @@ async function fetchRemoteUrls(mode: Mode, result: BaseResult): Promise<string[]
 function buildText(
   mode: Mode,
   prompt: string,
-  status: 'submitted' | 'pending' | 'completed',
+  status: 'submitted' | 'pending' | 'completed' | 'failed',
   taskId: string | undefined,
   remoteUrls: string[],
   publicUrls: string[],
-  localFiles: string[]
+  localFiles: string[],
+  errorMessage?: string
 ): string {
   const lines: string[] = [];
-  lines.push(`即梦${mode === 'image' ? '图片' : '视频'}任务${status === 'completed' ? '已完成' : '处理中'}`);
+  const modeText = mode === 'image' ? '图片' : '视频';
+  const statusText = status === 'completed'
+    ? '已完成'
+    : status === 'failed'
+      ? '失败'
+      : '处理中';
+  lines.push(`即梦${modeText}任务${statusText}`);
   lines.push(`提示词: ${prompt}`);
   if (taskId) {
     lines.push(`TaskId: ${taskId}`);
   }
 
-  if (status !== 'completed') {
+  if (status === 'failed' && errorMessage) {
+    lines.push(`错误: ${errorMessage}`);
+  }
+
+  if (status !== 'completed' && status !== 'failed') {
     lines.push('可稍后用相同提示词再次查询结果。');
   }
 
@@ -223,8 +264,11 @@ async function main(): Promise<void> {
   const remoteUrls = dedupe([...directRemoteUrls, ...fetchedRemoteUrls]);
   const publicUrls = dedupe(localFiles.map(file => toPublicUrl(file)));
 
-  const status: 'submitted' | 'pending' | 'completed' =
-    base.submitted ? 'submitted' : base.pending ? 'pending' : 'completed';
+  const status: 'submitted' | 'pending' | 'completed' | 'failed' =
+    !base.success ? 'failed' : base.submitted ? 'submitted' : base.pending ? 'pending' : 'completed';
+  const errorMessage = typeof base.error === 'object' && base.error && typeof (base.error as { message?: unknown }).message === 'string'
+    ? (base.error as { message: string }).message
+    : undefined;
 
   const result = {
     success: base.success,
@@ -240,7 +284,7 @@ async function main(): Promise<void> {
       wecom: { viewUrls: publicUrls.length > 0 ? publicUrls : remoteUrls },
       dingtalk: { viewUrls: publicUrls.length > 0 ? publicUrls : remoteUrls }
     },
-    text: buildText(mode, prompt, status, typeof base.taskId === 'string' ? base.taskId : undefined, remoteUrls, publicUrls, localFiles),
+    text: buildText(mode, prompt, status, typeof base.taskId === 'string' ? base.taskId : undefined, remoteUrls, publicUrls, localFiles, errorMessage),
     raw: base
   };
 
